@@ -123,6 +123,24 @@ def ma(length, type:, symbol: , aggregation_period:)
   return flatten_json(data_points, aggregation_period, type)
 end
 
+def ma_movement(candles_hash, ma_hash)
+  trend = nil
+  output = "is "
+  if ma_hash[candles_hash[:last_candle_timestamp]] > ma_hash[candles_hash[:second_to_last_candle_timestamp]]
+    trend = 1
+    output += "UPTRENDING "
+  elsif ma_hash[candles_hash[:last_candle_timestamp]] == ma_hash[candles_hash[:second_to_last_candle_timestamp]]
+      trend = 0
+      output += "FLAT "
+  else
+    trend = -1
+    output += "DOWNTRENDING "
+  end
+  output += "from #{ma_hash[candles_hash[:second_to_last_candle_timestamp]]} to #{ma_hash[candles_hash[:last_candle_timestamp]]}"
+
+  return trend, output
+end
+
 def rsi(symbol: , aggregation_period:)
   # Returns a hash with the following structure
   #
@@ -148,18 +166,24 @@ def rsi(symbol: , aggregation_period:)
 end
 
 def rsi_movement(candles_hash, rsi_hash)
-  output = "RSI "
+  trend = nil
+  output = "RSI is " + rsi_hash[candles_hash[:last_candle_timestamp]] + ", "
   if rsi_hash[candles_hash[:last_candle_timestamp]] > rsi_hash[candles_hash[:second_to_last_candle_timestamp]]
-    output += "INCREASING "
+    trend = 1
+    output += "INCREASING from " + rsi_hash[candles_hash[:second_to_last_candle_timestamp]]
+    elsif rsi_hash[candles_hash[:last_candle_timestamp]] == rsi_hash[candles_hash[:second_to_last_candle_timestamp]]
+    trend = 0
+    output += "FLAT "
   else
-    output += "DECREASING "
+    trend = -1
+    output += "DECREASING from " + rsi_hash[candles_hash[:second_to_last_candle_timestamp]]
   end
-  output += "from #{rsi_hash[candles_hash[:second_to_last_candle_timestamp]]} to #{rsi_hash[candles_hash[:last_candle_timestamp]]}"
-  return output
+
+  return trend, rsi_hash[candles_hash[:second_to_last_candle_timestamp]].to_f, rsi_hash[candles_hash[:last_candle_timestamp]].to_f, output
 end
 
 def rsi_spot(candles_hash, rsi_hash)
-  return rsi_hash[candles_hash[:last_candle_timestamp]]
+  return rsi_hash[candles_hash[:last_candle_timestamp]].to_f
 end
 
 def macd(symbol: , aggregation_period:)
@@ -190,10 +214,27 @@ def macd(symbol: , aggregation_period:)
   end
 end
 
+def macd_bullish?(candles_hash, macd_hash)
+  macd_value = macd_hash[candles_hash[:last_candle_timestamp]]["MACD"]
+  signal = macd_hash[candles_hash[:last_candle_timestamp]]["MACD_Signal"]
+  return macd_value > signal
+end
+
+# def macd_movement(candles_hash, macd_hash)
+#   output = "MACD is"
+#   if macd_hash[candles_hash[:last_candle_timestamp]] > macd_hash[candles_hash[:second_to_last_candle_timestamp]]
+#     output += "INCREASING "
+#   else
+#     output += "DECREASING "
+#   end
+#   output += "from #{rsi_hash[candles_hash[:second_to_last_candle_timestamp]]} to #{macd_hash[candles_hash[:last_candle_timestamp]]}"
+#   return output
+# end
+
 def at_confirmation?(candles_hash, ma_hash)
   second_to_last_candle_is_green_and_intersects_ema =
       candles_hash[:second_to_last_candle_data]["1. open"] <= ma_hash[candles_hash[:second_to_last_candle_timestamp]] &&
-          candles_hash[:second_to_last_candle_data]["4. close"] > ma_hash[candles_hash[:second_to_last_candle_timestamp]]
+          candles_hash[:second_to_last_candle_data]["4. close"] >= ma_hash[candles_hash[:second_to_last_candle_timestamp]]
 
   # This can be a *GREEN* *OR* a *RED* candle. If in the future, we want only green last candles, modify condition
   last_candle_is_over_ema =
@@ -203,31 +244,73 @@ def at_confirmation?(candles_hash, ma_hash)
   return second_to_last_candle_is_green_and_intersects_ema && last_candle_is_over_ema
 end
 
-def buy?
-
+def at_validation?(candles_hash, ma_hash)
+  return  candles_hash[:last_candle_data]["1. open"] >= ma_hash[candles_hash[:last_candle_timestamp]] &&
+          candles_hash[:last_candle_data]["4. close"] <= ma_hash[candles_hash[:last_candle_timestamp]]
 end
 
-def sell?
+def buy?(candles_hash, ma_hash, rsi_hash, macd_hash, resistance_level = nil)
+  could_buy = false
+  if  ma_movement(candles_hash, ma_hash)[0] == 1  &&  # MA uptrending
+      at_confirmation?(candles_hash, ma_hash)     &&  # at confirmation
+      rsi_spot(candles_hash, rsi_hash) < 60       &&  # RSI < 60
+      macd_bullish?(candles_hash, macd_hash)          # MACD is over Signal line
 
+    could_buy = true
+  end
+
+  if could_buy
+    if resistance_level && candles_hash[:last_candle_data]["4. close"] < resistance_level
+      return false
+    else
+      return true
+    end
+  else
+    return false
+  end
+end
+
+def sell?(candles_hash, ma_hash, rsi_hash, macd_hash)
+  return 1 if !macd_bullish?(candles_hash, macd_hash)
+  return 1 if at_validation?(candles_hash, ma_hash)
+  return 0.5 if rsi_spot(candles_hash, rsi_hash) >= 70 # if RSI is overbought, but validation has not been reached yet, sell 50%
+  return 0.9 if rsi_spot(candles_hash, rsi_hash) < 70 && rsi_movement(candles_hash, rsi_hash)[1] >= 70 # if RSI falls bellow 70, sell 90%
+  return 0
 end
 
 
 symbol = 'TSLA'
 aggregation_period = '60min'
-ma_type = 'SMA'
+ma_type = 'EMA'
 ma_length = 15
 
 begin
   candle_set = candles(symbol: symbol, aggregation_period: aggregation_period)
   ma_set = ma(ma_length, type: ma_type, symbol: symbol, aggregation_period: aggregation_period)
   rsi_set = rsi(symbol: symbol, aggregation_period: aggregation_period)
-  macd = macd(symbol: symbol, aggregation_period: aggregation_period)
+  macd_set = macd(symbol: symbol, aggregation_period: aggregation_period)
 rescue
   fail("API calls are limited to 5/minute. Retry in 1 minute.")
 end
-puts "================= #{symbol} ================= "
+puts "========================= #{symbol} ========================= "
 puts "Aggregation period: #{aggregation_period}"
-puts "MA type: #{ma_type}#{ma_length}"
+puts "Price at #{candle_set[:last_candle_timestamp]}: $#{candle_set[:last_candle_data]["4. close"]}"
+puts "#{ma_type}#{ma_length}: #{ma_movement(candle_set, ma_set)[1]}"
 puts "At confirmation: " + at_confirmation?(candle_set, ma_set).to_s.upcase
-puts "RSI: " + rsi_spot(candle_set, rsi_set)
-puts rsi_movement(candle_set, rsi_set)
+puts rsi_movement(candle_set, rsi_set)[3]
+
+print "MACD is: "
+if macd_bullish?(candle_set, macd_set)
+  puts "BULLISH"
+else
+  puts "Bearish"
+end
+
+print "Buy/Sell/Hold: "
+if buy?(candle_set, ma_set, rsi_set, macd_set)
+  puts "BUY"
+elsif sell?(candle_set, ma_set, rsi_set, macd_set) > 0
+  puts "SELL #{sell?(candle_set, ma_set, rsi_set, macd_set)*100}% of position"
+else
+  puts "HOLD"
+end
