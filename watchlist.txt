@@ -1,0 +1,44 @@
+* This file contains a list stocks you want to analyse.
+* One line for each ticker.
+*
+* Example:
+* TSLA
+* IBM
+*
+* START TYPING YOUR WATCHLIST BELLOW THIS LINE
+* ============================================================================================================
+BTCUSD
+XAGUSD
+TSLA
+BBY
+BNTX
+SPCE
+QCOM
+DISH
+BA
+WKHS
+EBAY
+LULU
+GAP
+FL
+HOG
+OMC
+URBN
+LB
+TV
+SHOP
+BB
+CARS
+RIDE
+HYLN
+COST
+TALO
+FOSL
+ABNB
+INTC
+NIO
+XL
+PLTR
+TTCF
+JMIA
+INTC

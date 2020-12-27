@@ -1,10 +1,18 @@
 require 'net/http'
 require 'json'
+require 'colorize'
 #require 'tzinfo'
 
-# API_KEY = '478635YKYZK5MW7I'
-API_KEY = 'RRBHUV4XU8VHWATO'
-BASE_URL = "https://www.alphavantage.co/query?apikey=#{API_KEY}"
+API_KEYS = [
+    'BVMOITERXJHOY774', 'JN9OHYV2EN60K14T', '624NPBZ88CXG7D36',
+    '478635YKYZK5MW7I', 'RRBHUV4XU8VHWATO', '1I6M1D6M5FJYZ3GS',
+    'JU8OVMBD8FEJ8Q4I', 'ULAXY5KVKDBSEMJ5', 'CV4NOXZGD0707NMU',
+    'L85QHIKWEDKGSC10', 'OEV0MXSBURG36VK2', 'Q9V444MJ9NQCKCM8'
+]
+
+def base_url
+  return "https://www.alphavantage.co/query?apikey=#{ENV['API_KEY']}"
+end
 
 # def ny_hour(hours_ago: 0)
 #   ny_timezone = TZInfo::Timezone.get('EST')
@@ -76,9 +84,9 @@ def candles(symbol:, aggregation_period:)
   # }
 
   if aggregation_period == 'Daily'
-    uri = URI("#{BASE_URL}&function=TIME_SERIES_DAILY_ADJUSTED&symbol=#{symbol}")
+    uri = URI("#{base_url}&function=TIME_SERIES_DAILY_ADJUSTED&symbol=#{symbol}")
   elsif ['1min', '5min', '15min', '30min', '60min'].include?(aggregation_period)
-    uri = URI("#{BASE_URL}&function=TIME_SERIES_INTRADAY&symbol=#{symbol}&interval=#{aggregation_period}")
+    uri = URI("#{base_url}&function=TIME_SERIES_INTRADAY&symbol=#{symbol}&interval=#{aggregation_period}")
   else
     fail("Aggregation period not supported. Try one of the following values: [1min, 5min, 15min, 30min, 60min, Daily]")
   end
@@ -117,7 +125,7 @@ def ma(length, type:, symbol: , aggregation_period:)
 
   fail("MA type must be one of the following: ['SMA', 'EMA']") if ! ['SMA', 'EMA'].include?(type)
 
-  uri = URI("#{BASE_URL}&function=#{type}&symbol=#{symbol}&interval=#{aggregation_period.downcase}&time_period=#{length}&series_type=close")
+  uri = URI("#{base_url}&function=#{type}&symbol=#{symbol}&interval=#{aggregation_period.downcase}&time_period=#{length}&series_type=close")
   response = JSON(Net::HTTP.get_response(uri).body)
   data_points = response["Technical Analysis: #{type}"]
   return flatten_json(data_points, aggregation_period, type)
@@ -126,15 +134,15 @@ end
 def ma_movement(candles_hash, ma_hash)
   trend = nil
   output = "is "
-  if ma_hash[candles_hash[:last_candle_timestamp]] > ma_hash[candles_hash[:second_to_last_candle_timestamp]]
+  if ma_hash[candles_hash[:last_candle_timestamp]].to_f > ma_hash[candles_hash[:second_to_last_candle_timestamp]].to_f
     trend = 1
-    output += "UPTRENDING "
-  elsif ma_hash[candles_hash[:last_candle_timestamp]] == ma_hash[candles_hash[:second_to_last_candle_timestamp]]
+    output += "UPTRENDING ".green
+  elsif ma_hash[candles_hash[:last_candle_timestamp]].to_f == ma_hash[candles_hash[:second_to_last_candle_timestamp]].to_f
       trend = 0
       output += "FLAT "
   else
     trend = -1
-    output += "DOWNTRENDING "
+    output += "DOWNTRENDING ".red
   end
   output += "from #{ma_hash[candles_hash[:second_to_last_candle_timestamp]]} to #{ma_hash[candles_hash[:last_candle_timestamp]]}"
 
@@ -159,7 +167,7 @@ def rsi(symbol: , aggregation_period:)
   # }
   #
 
-  uri = URI("#{BASE_URL}&function=RSI&symbol=#{symbol}&interval=#{aggregation_period.downcase}&time_period=14&series_type=close")
+  uri = URI("#{base_url}&function=RSI&symbol=#{symbol}&interval=#{aggregation_period.downcase}&time_period=14&series_type=close")
   response = JSON(Net::HTTP.get_response(uri).body)
   data_points = response["Technical Analysis: RSI"]
   return flatten_json(data_points, aggregation_period, "RSI")
@@ -167,11 +175,23 @@ end
 
 def rsi_movement(candles_hash, rsi_hash)
   trend = nil
-  output = "RSI is " + rsi_hash[candles_hash[:last_candle_timestamp]] + ", "
-  if rsi_hash[candles_hash[:last_candle_timestamp]] > rsi_hash[candles_hash[:second_to_last_candle_timestamp]]
+
+  coloured_rsi_value = ''
+  if rsi_hash[candles_hash[:last_candle_timestamp]].to_f <= 30
+    coloured_rsi_value = rsi_hash[candles_hash[:last_candle_timestamp]].white.on_green
+  elsif rsi_hash[candles_hash[:last_candle_timestamp]].to_f.between?(30, 60)
+    coloured_rsi_value = rsi_hash[candles_hash[:last_candle_timestamp]].green
+  elsif rsi_hash[candles_hash[:last_candle_timestamp]].to_f.between?(60, 70)
+    coloured_rsi_value = rsi_hash[candles_hash[:last_candle_timestamp]].red
+  else
+    coloured_rsi_value = rsi_hash[candles_hash[:last_candle_timestamp]].white.on_red
+  end
+
+  output = "RSI is " + coloured_rsi_value + ", "
+  if rsi_hash[candles_hash[:last_candle_timestamp]].to_f > rsi_hash[candles_hash[:second_to_last_candle_timestamp]].to_f
     trend = 1
     output += "INCREASING from " + rsi_hash[candles_hash[:second_to_last_candle_timestamp]]
-    elsif rsi_hash[candles_hash[:last_candle_timestamp]] == rsi_hash[candles_hash[:second_to_last_candle_timestamp]]
+    elsif rsi_hash[candles_hash[:last_candle_timestamp]].to_f == rsi_hash[candles_hash[:second_to_last_candle_timestamp]].to_f
     trend = 0
     output += "FLAT "
   else
@@ -203,7 +223,7 @@ def macd(symbol: , aggregation_period:)
   # }
   #
 
-  uri = URI("#{BASE_URL}&function=MACD&symbol=#{symbol}&interval=#{aggregation_period.downcase}&series_type=close")
+  uri = URI("#{base_url}&function=MACD&symbol=#{symbol}&interval=#{aggregation_period.downcase}&series_type=close")
   response = JSON(Net::HTTP.get_response(uri).body)
   data_points = response["Technical Analysis: MACD"]
 
@@ -215,8 +235,8 @@ def macd(symbol: , aggregation_period:)
 end
 
 def macd_bullish?(candles_hash, macd_hash)
-  macd_value = macd_hash[candles_hash[:last_candle_timestamp]]["MACD"]
-  signal = macd_hash[candles_hash[:last_candle_timestamp]]["MACD_Signal"]
+  macd_value = macd_hash[candles_hash[:last_candle_timestamp]]["MACD"].to_f
+  signal = macd_hash[candles_hash[:last_candle_timestamp]]["MACD_Signal"].to_f
   return macd_value > signal
 end
 
@@ -233,20 +253,20 @@ end
 
 def at_confirmation?(candles_hash, ma_hash)
   second_to_last_candle_is_green_and_intersects_ema =
-      candles_hash[:second_to_last_candle_data]["1. open"] <= ma_hash[candles_hash[:second_to_last_candle_timestamp]] &&
-          candles_hash[:second_to_last_candle_data]["4. close"] >= ma_hash[candles_hash[:second_to_last_candle_timestamp]]
+      candles_hash[:second_to_last_candle_data]["1. open"].to_f <= ma_hash[candles_hash[:second_to_last_candle_timestamp]].to_f &&
+          candles_hash[:second_to_last_candle_data]["4. close"].to_f >= ma_hash[candles_hash[:second_to_last_candle_timestamp]].to_f
 
   # This can be a *GREEN* *OR* a *RED* candle. If in the future, we want only green last candles, modify condition
   last_candle_is_over_ema =
-      candles_hash[:last_candle_data]["1. open"] > ma_hash[candles_hash[:last_candle_timestamp]] &&
-          candles_hash[:last_candle_data]["4. close"] > ma_hash[candles_hash[:last_candle_timestamp]]
+      candles_hash[:last_candle_data]["1. open"].to_f > ma_hash[candles_hash[:last_candle_timestamp]].to_f &&
+          candles_hash[:last_candle_data]["4. close"].to_f > ma_hash[candles_hash[:last_candle_timestamp]].to_f
 
   return second_to_last_candle_is_green_and_intersects_ema && last_candle_is_over_ema
 end
 
 def at_validation?(candles_hash, ma_hash)
-  return  candles_hash[:last_candle_data]["1. open"] >= ma_hash[candles_hash[:last_candle_timestamp]] &&
-          candles_hash[:last_candle_data]["4. close"] <= ma_hash[candles_hash[:last_candle_timestamp]]
+  return  candles_hash[:last_candle_data]["1. open"].to_f >= ma_hash[candles_hash[:last_candle_timestamp]].to_f &&
+          candles_hash[:last_candle_data]["4. close"].to_f <= ma_hash[candles_hash[:last_candle_timestamp]].to_f
 end
 
 def buy?(candles_hash, ma_hash, rsi_hash, macd_hash, resistance_level = nil)
@@ -260,7 +280,7 @@ def buy?(candles_hash, ma_hash, rsi_hash, macd_hash, resistance_level = nil)
   end
 
   if could_buy
-    if resistance_level && candles_hash[:last_candle_data]["4. close"] < resistance_level
+    if resistance_level && candles_hash[:last_candle_data]["4. close"].to_f < resistance_level
       return false
     else
       return true
@@ -278,39 +298,61 @@ def sell?(candles_hash, ma_hash, rsi_hash, macd_hash)
   return 0
 end
 
+def analyse_stock(symbol: , aggregation_period: , ma_type: , ma_length:)
+  success = false
+  until success
+    begin
+      candle_set = candles(symbol: symbol, aggregation_period: aggregation_period)
+      ma_set = ma(ma_length, type: ma_type, symbol: symbol, aggregation_period: aggregation_period)
+      rsi_set = rsi(symbol: symbol, aggregation_period: aggregation_period)
+      macd_set = macd(symbol: symbol, aggregation_period: aggregation_period)
+      success = true
+    rescue => e
+      # fail("API calls are limited to 5/minute. Retry in 1 minute.")
+      sleep 60
+    end
+  end
 
-symbol = 'TSLA'
-aggregation_period = '60min'
-ma_type = 'EMA'
-ma_length = 15
+  puts "=====================#{symbol}===================== ".white.on_black
+  puts "Aggregation period: #{aggregation_period}"
+  puts "Price at close of last - candle #{candle_set[:last_candle_timestamp]}: $#{candle_set[:last_candle_data]["4. close"]}"
+  puts "#{ma_type}#{ma_length.to_i} #{ma_movement(candle_set, ma_set)[1]}"
+  puts "At confirmation: " + at_confirmation?(candle_set, ma_set).to_s.upcase
+  puts rsi_movement(candle_set, rsi_set)[3]
 
-begin
-  candle_set = candles(symbol: symbol, aggregation_period: aggregation_period)
-  ma_set = ma(ma_length, type: ma_type, symbol: symbol, aggregation_period: aggregation_period)
-  rsi_set = rsi(symbol: symbol, aggregation_period: aggregation_period)
-  macd_set = macd(symbol: symbol, aggregation_period: aggregation_period)
-rescue
-  fail("API calls are limited to 5/minute. Retry in 1 minute.")
+  print "MACD is: "
+  if macd_bullish?(candle_set, macd_set)
+    puts "Bullish".green
+  else
+    puts "Bearish".red
+  end
+
+  print "Buy/Sell/Hold: "
+  if buy?(candle_set, ma_set, rsi_set, macd_set)
+    puts "BUY".white.on_green
+  elsif sell?(candle_set, ma_set, rsi_set, macd_set) > 0
+    puts "SELL #{sell?(candle_set, ma_set, rsi_set, macd_set)*100}% of position".white.on_red
+  else
+    puts "HOLD".white.on_blue
+  end
+  puts "\n"
 end
-puts "========================= #{symbol} ========================= "
-puts "Aggregation period: #{aggregation_period}"
-puts "Price at #{candle_set[:last_candle_timestamp]}: $#{candle_set[:last_candle_data]["4. close"]}"
-puts "#{ma_type}#{ma_length}: #{ma_movement(candle_set, ma_set)[1]}"
-puts "At confirmation: " + at_confirmation?(candle_set, ma_set).to_s.upcase
-puts rsi_movement(candle_set, rsi_set)[3]
 
-print "MACD is: "
-if macd_bullish?(candle_set, macd_set)
-  puts "BULLISH"
-else
-  puts "Bearish"
+def analyse_file_for_aggregation_period(aggregation_period)
+  last_used_key_index = 0
+
+  File.open('watchlist.txt').each do |line|
+    next if line.include?('*') || line.empty? # skip comment and empty lines
+
+    # cycle api keys
+    ENV['API_KEY'] = API_KEYS[last_used_key_index]
+    last_used_key_index += 1
+    last_used_key_index = 0 if last_used_key_index + 1 > API_KEYS.length
+
+    # parse line in file
+    analyse_stock(symbol: line, aggregation_period: aggregation_period, ma_type: "EMA", ma_length: "15")
+    # Example: analyse_stock(symbol: 'TSLA', aggregation_period: 'Daily', ma_type: 'SMA', ma_length: 15)
+  end
 end
 
-print "Buy/Sell/Hold: "
-if buy?(candle_set, ma_set, rsi_set, macd_set)
-  puts "BUY"
-elsif sell?(candle_set, ma_set, rsi_set, macd_set) > 0
-  puts "SELL #{sell?(candle_set, ma_set, rsi_set, macd_set)*100}% of position"
-else
-  puts "HOLD"
-end
+analyse_file_for_aggregation_period("Daily")
