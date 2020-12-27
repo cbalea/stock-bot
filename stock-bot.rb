@@ -10,7 +10,7 @@ require 'colorize'
 #     'L85QHIKWEDKGSC10', 'OEV0MXSBURG36VK2', 'Q9V444MJ9NQCKCM8'
 # ]
 
-ENV['API_KEY'] = '0ZBOV2COHMOO7B67'
+# ENV['API_KEY'] = '0ZBOV2COHMOO7B67'
 
 def base_url
   return "https://www.alphavantage.co/query?apikey=#{ENV['API_KEY']}"
@@ -87,10 +87,10 @@ def candles(symbol:, aggregation_period:)
 
   if aggregation_period == 'Daily'
     uri = URI("#{base_url}&function=TIME_SERIES_DAILY_ADJUSTED&symbol=#{symbol}")
-  elsif ['1min', '5min', '15min', '30min', '60min'].include?(aggregation_period)
+  elsif ['60min'].include?(aggregation_period)
     uri = URI("#{base_url}&function=TIME_SERIES_INTRADAY&symbol=#{symbol}&interval=#{aggregation_period}")
   else
-    fail("Aggregation period not supported. Try one of the following values: [1min, 5min, 15min, 30min, 60min, Daily]")
+    fail("Aggregation period not supported. Try one of the following values: 60min, Daily.")
   end
   response = JSON(Net::HTTP.get_response(uri).body)
 
@@ -358,5 +358,7 @@ def analyse_file_for_aggregation_period(aggregation_period:)
   end
 end
 
-aggregation_period = ARGV[0].nil? ? "Daily" : ARGV[0].capitalize
+fail("You must provide an API key in the command line.") if ARGV[0].nil? || ARGV[0].length <= 5
+ENV['API_KEY'] = ARGV[0]
+aggregation_period = ARGV[1].nil? ? "Daily" : ARGV[1].capitalize
 analyse_file_for_aggregation_period(aggregation_period: aggregation_period)
