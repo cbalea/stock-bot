@@ -340,7 +340,7 @@ def analyse_stock(symbol: , aggregation_period: , ma_type: , ma_length:)
   puts "\n"
 end
 
-def analyse_file_for_aggregation_period(aggregation_period)
+def analyse_file_for_aggregation_period(aggregation_period:)
   last_used_key_index = 0
 
   File.open('watchlist.txt').each do |line|
@@ -358,4 +358,5 @@ def analyse_file_for_aggregation_period(aggregation_period)
   end
 end
 
-analyse_file_for_aggregation_period("Daily")
+aggregation_period = ARGV[0].nil? ? "Daily" : ARGV[0].capitalize
+analyse_file_for_aggregation_period(aggregation_period: aggregation_period)
