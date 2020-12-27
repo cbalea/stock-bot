@@ -3,12 +3,14 @@ require 'json'
 require 'colorize'
 #require 'tzinfo'
 
-API_KEYS = [
-    'BVMOITERXJHOY774', 'JN9OHYV2EN60K14T', '624NPBZ88CXG7D36',
-    '478635YKYZK5MW7I', 'RRBHUV4XU8VHWATO', '1I6M1D6M5FJYZ3GS',
-    'JU8OVMBD8FEJ8Q4I', 'ULAXY5KVKDBSEMJ5', 'CV4NOXZGD0707NMU',
-    'L85QHIKWEDKGSC10', 'OEV0MXSBURG36VK2', 'Q9V444MJ9NQCKCM8'
-]
+# API_KEYS = [
+#     'BVMOITERXJHOY774', 'JN9OHYV2EN60K14T', '624NPBZ88CXG7D36',
+#     '478635YKYZK5MW7I', 'RRBHUV4XU8VHWATO', '1I6M1D6M5FJYZ3GS',
+#     'JU8OVMBD8FEJ8Q4I', 'ULAXY5KVKDBSEMJ5', 'CV4NOXZGD0707NMU',
+#     'L85QHIKWEDKGSC10', 'OEV0MXSBURG36VK2', 'Q9V444MJ9NQCKCM8'
+# ]
+
+ENV['API_KEY'] = '0ZBOV2COHMOO7B67'
 
 def base_url
   return "https://www.alphavantage.co/query?apikey=#{ENV['API_KEY']}"
@@ -299,8 +301,8 @@ def sell?(candles_hash, ma_hash, rsi_hash, macd_hash)
 end
 
 def analyse_stock(symbol: , aggregation_period: , ma_type: , ma_length:)
-  success = false
-  until success
+  # success = false
+  # until success
     begin
       candle_set = candles(symbol: symbol, aggregation_period: aggregation_period)
       ma_set = ma(ma_length, type: ma_type, symbol: symbol, aggregation_period: aggregation_period)
@@ -309,9 +311,9 @@ def analyse_stock(symbol: , aggregation_period: , ma_type: , ma_length:)
       success = true
     rescue => e
       # fail("API calls are limited to 5/minute. Retry in 1 minute.")
-      sleep 60
+      # sleep 60
     end
-  end
+  # end
 
   puts "=====================#{symbol}===================== ".white.on_black
   puts "Aggregation period: #{aggregation_period}"
@@ -344,14 +346,15 @@ def analyse_file_for_aggregation_period(aggregation_period)
   File.open('watchlist.txt').each do |line|
     next if line.include?('*') || line.empty? # skip comment and empty lines
 
-    # cycle api keys
-    ENV['API_KEY'] = API_KEYS[last_used_key_index]
-    last_used_key_index += 1
-    last_used_key_index = 0 if last_used_key_index + 1 > API_KEYS.length
+    # # cycle api keys
+    # ENV['API_KEY'] = API_KEYS[last_used_key_index]
+    # last_used_key_index += 1
+    # last_used_key_index = 0 if last_used_key_index + 1 > API_KEYS.length
 
     # parse line in file
     analyse_stock(symbol: line, aggregation_period: aggregation_period, ma_type: "EMA", ma_length: "15")
     # Example: analyse_stock(symbol: 'TSLA', aggregation_period: 'Daily', ma_type: 'SMA', ma_length: 15)
+    sleep 61
   end
 end
 
