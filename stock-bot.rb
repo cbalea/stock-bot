@@ -7,10 +7,12 @@ require 'colorize'
 #     'BVMOITERXJHOY774', 'JN9OHYV2EN60K14T', '624NPBZ88CXG7D36',
 #     '478635YKYZK5MW7I', 'RRBHUV4XU8VHWATO', '1I6M1D6M5FJYZ3GS',
 #     'JU8OVMBD8FEJ8Q4I', 'ULAXY5KVKDBSEMJ5', 'CV4NOXZGD0707NMU',
-#     'L85QHIKWEDKGSC10', 'OEV0MXSBURG36VK2', 'Q9V444MJ9NQCKCM8'
+#     'L85QHIKWEDKGSC10', 'OEV0MXSBURG36VK2', 'Q9V444MJ9NQCKCM8',
+#     '0ZBOV2COHMOO7B67'
 # ]
 
-# ENV['API_KEY'] = '0ZBOV2COHMOO7B67'
+ENV['API_KEY'] = 'JU8OVMBD8FEJ8Q4I'
+SLACK_WEBHOOK_URL = "https://hooks.slack.com/services/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"
 
 def base_url
   return "https://www.alphavantage.co/query?apikey=#{ENV['API_KEY']}"
@@ -138,15 +140,15 @@ def ma_movement(candles_hash, ma_hash)
   output = "is "
   if ma_hash[candles_hash[:last_candle_timestamp]].to_f > ma_hash[candles_hash[:second_to_last_candle_timestamp]].to_f
     trend = 1
-    output += "UPTRENDING ".green
+    output += "*UPTRENDING* "
   elsif ma_hash[candles_hash[:last_candle_timestamp]].to_f == ma_hash[candles_hash[:second_to_last_candle_timestamp]].to_f
       trend = 0
       output += "FLAT "
   else
     trend = -1
-    output += "DOWNTRENDING ".red
+    output += "*DOWNTRENDING* "
   end
-  output += "from #{ma_hash[candles_hash[:second_to_last_candle_timestamp]]} to #{ma_hash[candles_hash[:last_candle_timestamp]]}"
+  output += "from $#{ma_hash[candles_hash[:second_to_last_candle_timestamp]]} to $#{ma_hash[candles_hash[:last_candle_timestamp]]}"
 
   return trend, output
 end
@@ -178,18 +180,7 @@ end
 def rsi_movement(candles_hash, rsi_hash)
   trend = nil
 
-  coloured_rsi_value = ''
-  if rsi_hash[candles_hash[:last_candle_timestamp]].to_f <= 30
-    coloured_rsi_value = rsi_hash[candles_hash[:last_candle_timestamp]].white.on_green
-  elsif rsi_hash[candles_hash[:last_candle_timestamp]].to_f.between?(30, 60)
-    coloured_rsi_value = rsi_hash[candles_hash[:last_candle_timestamp]].green
-  elsif rsi_hash[candles_hash[:last_candle_timestamp]].to_f.between?(60, 70)
-    coloured_rsi_value = rsi_hash[candles_hash[:last_candle_timestamp]].red
-  else
-    coloured_rsi_value = rsi_hash[candles_hash[:last_candle_timestamp]].white.on_red
-  end
-
-  output = "RSI is " + coloured_rsi_value + ", "
+  output = "_RSI is_ " + rsi_hash[candles_hash[:last_candle_timestamp]] + ", "
   if rsi_hash[candles_hash[:last_candle_timestamp]].to_f > rsi_hash[candles_hash[:second_to_last_candle_timestamp]].to_f
     trend = 1
     output += "INCREASING from " + rsi_hash[candles_hash[:second_to_last_candle_timestamp]]
@@ -315,32 +306,43 @@ def analyse_stock(symbol: , aggregation_period: , ma_type: , ma_length:)
     end
   # end
 
-  puts "=====================#{symbol}===================== ".white.on_black
-  puts "Aggregation period: #{aggregation_period}"
-  puts "Price at close of last - candle #{candle_set[:last_candle_timestamp]}: $#{candle_set[:last_candle_data]["4. close"]}"
-  puts "#{ma_type}#{ma_length.to_i} #{ma_movement(candle_set, ma_set)[1]}"
-  puts "At confirmation: " + at_confirmation?(candle_set, ma_set).to_s.upcase
-  puts rsi_movement(candle_set, rsi_set)[3]
+  output = "*============#{symbol}============*" + "\n"
+  output += "> - Aggregation period: #{aggregation_period}" + "\n"
+  output += "> - Price at close of last - candle #{candle_set[:last_candle_timestamp]}: $#{candle_set[:last_candle_data]["4. close"]}" + "\n"
+  output += "> - _#{ma_type}#{ma_length.to_i}_ #{ma_movement(candle_set, ma_set)[1]}" + "\n" if !ma_set.nil?
+  output += "> - _At confirmation:_ *" + at_confirmation?(candle_set, ma_set).to_s + "*\n" if !ma_set.nil?
+  output += "> - " + rsi_movement(candle_set, rsi_set)[3] + "\n" if !rsi_set.nil?
 
-  print "MACD is: "
-  if macd_bullish?(candle_set, macd_set)
-    puts "Bullish".green
-  else
-    puts "Bearish".red
-  end
+  signal = :hold
+  if ! (macd_set.nil? || ma_set.nil? || rsi_set.nil?)
+    output += "> - _MACD is:_ "
+    if macd_bullish?(candle_set, macd_set)
+      output += "*Bullish*"
+    else
+      output += "*Bearish*"
+    end
+    output += "\n"
 
-  print "Buy/Sell/Hold: "
-  if buy?(candle_set, ma_set, rsi_set, macd_set)
-    puts "BUY".white.on_green
-  elsif sell?(candle_set, ma_set, rsi_set, macd_set) > 0
-    puts "SELL #{sell?(candle_set, ma_set, rsi_set, macd_set)*100}% of position".white.on_red
+    output += "_Buy/Sell/Hold:_ "
+    if buy?(candle_set, ma_set, rsi_set, macd_set)
+      output += "*BUY*"
+      signal = :buy
+    elsif sell?(candle_set, ma_set, rsi_set, macd_set) > 0
+      output += "*SELL #{sell?(candle_set, ma_set, rsi_set, macd_set)*100}% of position*"
+      signal = :sell
+    else
+      output += "*HOLD*"
+      signal = :hold
+    end
   else
-    puts "HOLD".white.on_blue
+    output += "*Stock is too new to provide statistics.*"
   end
-  puts "\n"
+  output += "\n"
+
+  return signal, output
 end
 
-def analyse_file_for_aggregation_period(aggregation_period:)
+def analyse_file_for_aggregation_period(aggregation_period: 'Daily')
   last_used_key_index = 0
 
   File.open('watchlist.txt').each do |line|
@@ -352,13 +354,45 @@ def analyse_file_for_aggregation_period(aggregation_period:)
     # last_used_key_index = 0 if last_used_key_index + 1 > API_KEYS.length
 
     # parse line in file
-    analyse_stock(symbol: line, aggregation_period: aggregation_period, ma_type: "EMA", ma_length: "15")
-    # Example: analyse_stock(symbol: 'TSLA', aggregation_period: 'Daily', ma_type: 'SMA', ma_length: 15)
+    signal, output = analyse_stock(symbol: line.strip, aggregation_period: aggregation_period, ma_type: "EMA", ma_length: "15")
+                    # Example: analyse_stock(symbol: 'TSLA', aggregation_period: 'Daily', ma_type: 'SMA', ma_length: 15)
+    send_slack_message(signal, output)
+    puts output
     sleep 61
   end
 end
 
-fail("You must provide an API key in the command line.") if ARGV[0].nil? || ARGV[0].length <= 5
-ENV['API_KEY'] = ARGV[0]
-aggregation_period = ARGV[1].nil? ? "Daily" : ARGV[1].capitalize
-analyse_file_for_aggregation_period(aggregation_period: aggregation_period)
+def send_slack_message(signal, message_body)
+  message_image = nil
+  if signal == :buy
+    message_image = 'https://greengroundswell.com/wordpress/wp-content/uploads/2017/10/Green-Buy-Button-on-Computer-Keyboard.jpg'
+  elsif signal == :sell
+    message_image = 'https://video-images.vice.com/articles/5bc64b932ec72100069adbac/lede/1539722508785-sellbutton.jpeg?crop=1xw:0.7605633802816901xh;center,center&resize=1200:*'
+  else
+    message_image = 'https://previews.123rf.com/images/tashatuvango/tashatuvango1704/tashatuvango170400441/76448657-keyboard-with-blue-button-hold-3d-.jpg'
+  end
+
+  payload = {
+      :text  => ' ',
+      :blocks => [{
+                      :type => 'section',
+                      :text => {
+                          :type => 'mrkdwn',
+                          :text => message_body
+                      },
+                      :accessory => {
+                          :type => 'image',
+                          :image_url => message_image,
+                          :alt_text => 'this is an image'
+                      }
+                  }]
+  }.to_json
+
+  cmd = "curl -X POST -H 'Content-type: application/json' --data '#{payload}' #{SLACK_WEBHOOK_URL}"
+  system(cmd)
+end
+
+# fail("You must provide an API key in the command line.") if ARGV[0].nil? || ARGV[0].length <= 5
+# ENV['API_KEY'] = ARGV[0]
+# aggregation_period = ARGV[1].nil? ? "Daily" : ARGV[1].capitalize
+analyse_file_for_aggregation_period()
