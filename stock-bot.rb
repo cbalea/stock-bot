@@ -12,7 +12,7 @@ require 'colorize'
 # ]
 
 ENV['API_KEY'] = 'JU8OVMBD8FEJ8Q4I'
-SLACK_WEBHOOK_URL = "https://hooks.slack.com/services/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"
+SLACK_WEBHOOK_URL = "https://hooks.slack.com/services/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"
 
 def base_url
   return "https://www.alphavantage.co/query?apikey=#{ENV['API_KEY']}"
