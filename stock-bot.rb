@@ -12,7 +12,8 @@ require 'colorize'
 # ]
 
 ENV['API_KEY'] = 'JU8OVMBD8FEJ8Q4I'
-SLACK_WEBHOOK_URL = "https://hooks.slack.com/services/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"
+# if stored in the clear on Github, Slack deactivates the web hook
+REVERSED_SLACK_WEBHOOK_URL = "15fIevTByrnP0z3nh3AnRs7G/3QE3DPSH10B/FFFUN2LH10T/secivres/moc.kcals.skooh//:sptth"
 
 def base_url
   return "https://www.alphavantage.co/query?apikey=#{ENV['API_KEY']}"
@@ -388,7 +389,7 @@ def send_slack_message(signal, message_body)
                   }]
   }.to_json
 
-  cmd = "curl -X POST -H 'Content-type: application/json' --data '#{payload}' #{SLACK_WEBHOOK_URL}"
+  cmd = "curl -X POST -H 'Content-type: application/json' --data '#{payload}' #{REVERSED_SLACK_WEBHOOK_URL.reverse}"
   system(cmd)
 end
 

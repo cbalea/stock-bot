@@ -8,6 +8,8 @@
 * START TYPING YOUR WATCHLIST BELLOW THIS LINE
 * ============================================================================================================
 BTCUSD
+ETHUSD
+LTCUSD
 TSLA
 BBY
 BNTX
@@ -97,3 +99,5 @@ LAZR
 AAL
 SNA
 CRM
+HUYA
+ATVI
