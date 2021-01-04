@@ -310,12 +310,13 @@ def analyse_stock(symbol: , aggregation_period: , ma_type: , ma_length:)
   output = "*============#{symbol}============*" + "\n"
   output += "> - Aggregation period: #{aggregation_period}" + "\n"
   output += "> - Price at close of last - candle #{candle_set[:last_candle_timestamp]}: $#{candle_set[:last_candle_data]["4. close"]}" + "\n"
-  output += "> - _#{ma_type}#{ma_length.to_i}_ #{ma_movement(candle_set, ma_set)[1]}" + "\n" if !ma_set.nil?
-  output += "> - _At confirmation:_ *" + at_confirmation?(candle_set, ma_set).to_s + "*\n" if !ma_set.nil?
-  output += "> - " + rsi_movement(candle_set, rsi_set)[3] + "\n" if !rsi_set.nil?
+  output += "> - _#{ma_type}#{ma_length.to_i}_ #{ma_movement(candle_set, ma_set)[1]}" + "\n" if !ma_set.nil? && ma_set.length > 1
+  output += "> - _At confirmation:_ *" + at_confirmation?(candle_set, ma_set).to_s + "*\n" if !ma_set.nil? && ma_set.length > 1
+  output += "> - " + rsi_movement(candle_set, rsi_set)[3] + "\n" if !rsi_set.nil? && rsi_set.length > 1
 
   signal = :hold
-  if ! (macd_set.nil? || ma_set.nil? || rsi_set.nil?)
+  if (!macd_set.nil? && !ma_set.nil? && !rsi_set.nil?) &&
+      (macd_set.length > 1 && ma_set.length > 1 && rsi_set.length > 1)
     output += "> - _MACD is:_ "
     if macd_bullish?(candle_set, macd_set)
       output += "*Bullish*"
