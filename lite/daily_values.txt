@@ -1,0 +1,9 @@
+2023-02-07 TSLA
+{"1. open"=>"196.43", "2. high"=>"197.5", "3. low"=>"189.55", "4. close"=>"196.81", "5. adjusted close"=>"196.81", "6. volume"=>"186010325", "7. dividend amount"=>"0.0000", "8. split coefficient"=>"1.0"}
+
+2023-02-07 IBM
+{"1. open"=>"135.67", "2. high"=>"136.4", "3. low"=>"134.45", "4. close"=>"135.84", "5. adjusted close"=>"135.84", "6. volume"=>"3737553", "7. dividend amount"=>"0.0000", "8. split coefficient"=>"1.0"}
+
+2023-02-07 AAPL
+{"1. open"=>"150.64", "2. high"=>"155.23", "3. low"=>"150.64", "4. close"=>"154.65", "5. adjusted close"=>"154.65", "6. volume"=>"83322551", "7. dividend amount"=>"0.0000", "8. split coefficient"=>"1.0"}
+
